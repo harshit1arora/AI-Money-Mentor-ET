@@ -88,11 +88,8 @@ export const generateFinancialIntelligence = async (profile: Profile, transactio
 
 export const chatWithAi = async (query: string, profile: Profile, fileDetails?: { name: string; type: string }) => {
   try {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) throw new Error("GEMINI key missing");
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+    if (!apiKey) throw new Error("GROQ key missing");
 
     const prompt = `
       You are an expert, premium financial advisor for Indian users. 
@@ -103,12 +100,26 @@ export const chatWithAi = async (query: string, profile: Profile, fileDetails?: 
       Respond directly, actionable and as a friendly mentor. Keep the response concise but professional.
     `;
 
-    console.log("Calling Gemini Engine for real-time chat...");
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
+    console.log("Calling Groq Engine for real-time chat...");
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        "model": "llama-3.1-8b-instant",
+        "messages": [
+          { "role": "user", "content": prompt }
+        ]
+      })
+    });
+
+    if (!response.ok) throw new Error(`Groq API error: ${response.status}`);
+    const data = await response.json();
+    return data.choices[0].message.content;
   } catch (error) {
-    console.warn("Gemini Engine failed, trying local engine.", error);
+    console.warn("Groq Engine failed, trying local engine.", error);
     // Secondary fallback to Python backend if GEMINI fails
     try {
         const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
